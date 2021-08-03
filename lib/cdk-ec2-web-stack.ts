@@ -1,5 +1,6 @@
 import * as cdk from '@aws-cdk/core';
 import * as ec2 from '@aws-cdk/aws-ec2';
+import * as iam from '@aws-cdk/aws-iam';
 
 export class CdkEc2WebStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -9,17 +10,6 @@ export class CdkEc2WebStack extends cdk.Stack {
       natGateways: 1
     });
 
-    const securityGroup = new ec2.SecurityGroup(this, "SecurityGroup", {
-      vpc,
-      description: "Allow ssh access to ec2 instances",
-      allowAllOutbound: true,
-    });
-    securityGroup.addIngressRule(
-      ec2.Peer.ipv4('114.114.192.168/32'),
-      ec2.Port.tcp(22),
-      "Allow ssh access from clarence"
-    );
-
     const ec2Instance = new ec2.Instance(this, "Instance", {
       vpc,
       instanceType: ec2.InstanceType.of(
@@ -27,15 +17,23 @@ export class CdkEc2WebStack extends cdk.Stack {
         ec2.InstanceSize.NANO
       ),
       machineImage: new ec2.AmazonLinuxImage(),
-      securityGroup,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PUBLIC,
-      },
-      keyName: "Clarence",
     });
+    ec2Instance.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "ssmmessages:*",
+          "ssm:UpdateInstanceInformation",
+          "ec2messages:*",
+        ],
+        resources: ["*"],
+      })
+    );
+    ec2Instance.addUserData(
+      "yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm"
+    );
 
-    new cdk.CfnOutput(this, 'InstanceIP', {
-      value: ec2Instance.instancePublicDnsName
+    new cdk.CfnOutput(this, 'InstanceId', {
+      value: ec2Instance.instanceId
     })
   }
 }
