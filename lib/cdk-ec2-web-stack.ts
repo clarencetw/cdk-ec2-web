@@ -26,7 +26,7 @@ export class CdkEc2WebStack extends cdk.Stack {
       keyName: "Clarence",
     });
     instance.connections.allowFrom(ec2.Peer.ipv4('114.114.192.168/32'), ec2.Port.tcp(22))
-    instance.connections.allowFromAnyIpv4(ec2.Port.tcp(80))
+    instance.connections.allowFrom(ec2.Peer.ipv4(vpc.vpcCidrBlock), ec2.Port.tcp(80))
 
     const localPath = instance.userData.addS3DownloadCommand({
       bucket: asset.bucket,
@@ -47,7 +47,7 @@ export class CdkEc2WebStack extends cdk.Stack {
     });
     listener.addTargets('Targets', {
       port: 80,
-      targets: [new targets.InstanceTarget(instance)]
+      targets: [new targets.IpTarget(instance.instancePrivateIp)]
     });
     new cdk.CfnOutput(this, 'PHPInfo', {
       value: `http://${lb.loadBalancerDnsName}/phpinfo.php`
